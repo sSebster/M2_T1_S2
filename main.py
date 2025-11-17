@@ -45,7 +45,6 @@ def do_capture(sock, server_address_port):
                 # Serialize to JSON and send via UDP
                 data_bytes = json.dumps(payload).encode("utf-8")
                 sock.sendto(data_bytes, server_address_port)
-                print(data_bytes)
             # -----------------------------------------
 
             # Draw the pose annotation on the image.
