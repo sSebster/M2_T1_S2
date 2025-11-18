@@ -32,7 +32,6 @@ void UCPoseReceiverComponent::TickComponent(float DeltaTime, ELevelTick TickType
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-	UE_LOG(LogTemp, Log, TEXT("Tick"))
 	if (ListenSocket != nullptr)
 		ReceiveData();
 }
@@ -41,10 +40,12 @@ void UCPoseReceiverComponent::TickComponent(float DeltaTime, ELevelTick TickType
 void UCPoseReceiverComponent::CreateSocket()
 {
 	UE_LOG(LogTemp, Log, TEXT("PoseReceiver: CreateSocket called"));
+	GEngine->AddOnScreenDebugMessage(INDEX_NONE, 2.f, FColor::Green, TEXT("CreateSocket called"));
 
 	if (ListenSocket)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("PoseReceiver: ListenSocket already exists"));
+		GEngine->AddOnScreenDebugMessage(1000, 5.f, FColor::Yellow, TEXT("ListenSocket already exists"));
 		return;
 	}
 
@@ -52,6 +53,7 @@ void UCPoseReceiverComponent::CreateSocket()
 	if (!SocketSubsystem)
 	{
 		UE_LOG(LogTemp, Error, TEXT("PoseReceiver: No SocketSubsystem available"));
+		GEngine->AddOnScreenDebugMessage(1000, 5.f, FColor::Red, TEXT("No SocketSubsystem available"));
 		return;
 	}
 
@@ -59,6 +61,7 @@ void UCPoseReceiverComponent::CreateSocket()
 	if (!ListenSocket)
 	{
 		UE_LOG(LogTemp, Error, TEXT("PoseReceiver: Failed to create UDP socket"));
+		GEngine->AddOnScreenDebugMessage(1000, 5.f, FColor::Red, TEXT("Failed to create UDP socket"));
 		return;
 	}
 
@@ -71,14 +74,7 @@ void UCPoseReceiverComponent::CreateSocket()
 	if (!bIsValid)
 	{
 		UE_LOG(LogTemp, Error, TEXT("PoseReceiver: Invalid Listen IP '%s'"), *IPAddress);
-		DestroySocket();
-		return;
-	}
-
-	const bool bBound = ListenSocket->Bind(*InternetAddr);
-	if (!bBound)
-	{
-		UE_LOG(LogTemp, Error, TEXT("PoseReceiver: Failed to bind UDP socket to %s:%d"), *IPAddress, Port);
+		GEngine->AddOnScreenDebugMessage(1000, 5.f, FColor::Red, FString::Printf(TEXT("Invalid Listen IP '%s'"), *IPAddress));
 		DestroySocket();
 		return;
 	}
@@ -86,7 +82,24 @@ void UCPoseReceiverComponent::CreateSocket()
 	ListenSocket->SetNonBlocking(true);
 	ListenSocket->SetReuseAddr(true);
 
+	const bool bBound = ListenSocket->Bind(*InternetAddr);
+	if (!bBound)
+	{
+		const ESocketErrors LastError = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLastErrorCode();
+		const TCHAR* ErrorStr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetSocketError(LastError);
+
+		UE_LOG(LogTemp, Error,
+			TEXT("PoseReceiver: Failed to bind UDP socket to %s:%d (Error %d: %s)"),
+			*IPAddress, Port,
+			static_cast<int32>(LastError),
+			ErrorStr ? ErrorStr : TEXT("Unknown"));
+		
+		DestroySocket();
+		return;
+	}
+	
 	UE_LOG(LogTemp, Log, TEXT("PoseReceiver: Listening on %s:%d"), *IPAddress, Port);
+	GEngine->AddOnScreenDebugMessage(1000, 5.f, FColor::Green, FString::Printf(TEXT("Listening on %s:%d"), *IPAddress, Port));
 }
 
 void UCPoseReceiverComponent::DestroySocket()
@@ -102,19 +115,22 @@ void UCPoseReceiverComponent::DestroySocket()
 void UCPoseReceiverComponent::ReceiveData()
 {
 	UE_LOG(LogTemp, Log, TEXT("Waah"))
+	GEngine->AddOnScreenDebugMessage(1001, 0.1f, FColor::Yellow, TEXT("ReceiveData called"));
 	uint32 PendingSize = 0;
 	while(ListenSocket->HasPendingData(PendingSize))
 	{
 		TArray<uint8> Buffer;
 		Buffer.SetNumUninitialized(FMath::Min(PendingSize, 65507u));
-		
+
 		UE_LOG(LogTemp, Warning, TEXT("Loop"))
+		GEngine->AddOnScreenDebugMessage(1002, 0.1f, FColor::Yellow, TEXT("Loop"));
 
 		int32 BytesRead = 0;
 		TSharedRef<FInternetAddr> Sender = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
 		if (ListenSocket->RecvFrom(Buffer.GetData(), Buffer.Num(), BytesRead, *Sender))
 		{
 			UE_LOG(LogTemp, Error, TEXT("Hello"))
+			GEngine->AddOnScreenDebugMessage(1003, 0.1f, FColor::Yellow, TEXT("Hello"));
 			FString JsonString = FString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(Buffer.GetData())));
 
 			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
@@ -142,7 +158,7 @@ void UCPoseReceiverComponent::ReceiveData()
 					}
 
 					LastLandmarks = MoveTemp(NewLandmarks);
-					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, FString::Printf(TEXT("Received %d landmarks"), LastLandmarks.Num()));
+					GEngine->AddOnScreenDebugMessage(1004, 5.f, FColor::Green, FString::Printf(TEXT("Received %d landmarks"), LastLandmarks.Num()));
 				}
 			}
 		}
