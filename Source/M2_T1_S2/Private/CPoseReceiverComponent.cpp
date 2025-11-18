@@ -114,23 +114,16 @@ void UCPoseReceiverComponent::DestroySocket()
 
 void UCPoseReceiverComponent::ReceiveData()
 {
-	UE_LOG(LogTemp, Log, TEXT("Waah"))
-	GEngine->AddOnScreenDebugMessage(1001, 0.1f, FColor::Yellow, TEXT("ReceiveData called"));
 	uint32 PendingSize = 0;
 	while(ListenSocket->HasPendingData(PendingSize))
 	{
 		TArray<uint8> Buffer;
 		Buffer.SetNumUninitialized(FMath::Min(PendingSize, 65507u));
 
-		UE_LOG(LogTemp, Warning, TEXT("Loop"))
-		GEngine->AddOnScreenDebugMessage(1002, 0.1f, FColor::Yellow, TEXT("Loop"));
-
 		int32 BytesRead = 0;
 		TSharedRef<FInternetAddr> Sender = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
 		if (ListenSocket->RecvFrom(Buffer.GetData(), Buffer.Num(), BytesRead, *Sender))
 		{
-			UE_LOG(LogTemp, Error, TEXT("Hello"))
-			GEngine->AddOnScreenDebugMessage(1003, 0.1f, FColor::Yellow, TEXT("Hello"));
 			FString JsonString = FString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(Buffer.GetData())));
 
 			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
