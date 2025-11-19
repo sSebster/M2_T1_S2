@@ -36,6 +36,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category="Capture")
 	bool bMirrorY = false;
+	
+	UPROPERTY(EditDefaultsOnly, Category="Capture")
+	TArray<FName> BoneNamesToMirror;
 
 	float PrevScaleCM = 30.f;
 	

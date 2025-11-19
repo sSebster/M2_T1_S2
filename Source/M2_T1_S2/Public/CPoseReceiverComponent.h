@@ -23,6 +23,8 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category="UDP")
 	TArray<FCPoseLandmark> LastLandmarks;
 	
+	FString LastData;
+	
 public:
 	UCPoseReceiverComponent();
 

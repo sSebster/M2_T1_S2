@@ -124,36 +124,10 @@ void UCPoseReceiverComponent::ReceiveData()
 		TSharedRef<FInternetAddr> Sender = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
 		if (ListenSocket->RecvFrom(Buffer.GetData(), Buffer.Num(), BytesRead, *Sender))
 		{
-			FString JsonString = FString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(Buffer.GetData())));
-
-			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
-			TSharedPtr<FJsonObject> RootObj;
-
-			if (FJsonSerializer::Deserialize(Reader, RootObj) && RootObj.IsValid())
-			{
-				const TArray<TSharedPtr<FJsonValue>>* LandmarksArray;
-				if (RootObj->TryGetArrayField(TEXT("landmarks"), LandmarksArray))
-				{
-					TArray<FCPoseLandmark> NewLandmarks;
-					NewLandmarks.Reserve(LandmarksArray->Num());
-
-					for (const TSharedPtr<FJsonValue>& Value : *LandmarksArray)
-					{
-						TSharedPtr<FJsonObject> LandmarkObj = Value->AsObject();
-						if (!LandmarkObj.IsValid())
-							continue;
-
-						FCPoseLandmark Lm;
-						Lm.X = LandmarkObj->GetNumberField(TEXT("x"));
-						Lm.Y = LandmarkObj->GetNumberField(TEXT("y"));
-						Lm.Z = LandmarkObj->GetNumberField(TEXT("z"));
-						NewLandmarks.Add(Lm);
-					}
-
-					LastLandmarks = MoveTemp(NewLandmarks);
-					GEngine->AddOnScreenDebugMessage(1004, 5.f, FColor::Green, FString::Printf(TEXT("Received %d landmarks"), LastLandmarks.Num()));
-				}
-			}
+			FString String = FString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(Buffer.GetData())));
+			LastData = String;
+			UE_LOG(LogTemp, Log, TEXT("%s"), *String);
+			GEngine->AddOnScreenDebugMessage(1004, 5.f, FColor::Green, FString::Printf(TEXT("Received %d bytes as %s"), BytesRead, *String));
 		}
 	}
 }
