@@ -3,6 +3,7 @@
 
 #include "CCapturedPawn.h"
 
+#include "CPoseApplier.h"
 #include "CPoseReceiverComponent.h"
 #include "Components/PoseableMeshComponent.h"
 
@@ -17,18 +18,20 @@ ACCapturedPawn::ACCapturedPawn()
 	PoseableMesh->SetupAttachment(RootComponent);
 	
 	PoseReceiver = CreateDefaultSubobject<UCPoseReceiverComponent>(TEXT("Pose Receiver"));
+	PoseApplier = CreateDefaultSubobject<UCPoseApplierComponent>(TEXT("Pose Applier"));
 }
 
 void ACCapturedPawn::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	PoseableMesh->GetBoneNames(BoneNames);
+	PoseApplier->Init(PoseableMesh.Get(), PoseReceiver.Get());
 }
 
 void ACCapturedPawn::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
 }
 
 void ACCapturedPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

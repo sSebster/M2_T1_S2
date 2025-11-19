@@ -6,6 +6,7 @@
 #include "GameFramework/Pawn.h"
 #include "CCapturedPawn.generated.h"
 
+class UCPoseApplierComponent;
 class UCPoseReceiverComponent;
 class UPoseableMeshComponent;
 
@@ -18,8 +19,17 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Capture", meta=(AllowPrivateAccess=true))
 	TObjectPtr<UPoseableMeshComponent> PoseableMesh;
 	
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture", meta=(AllowPrivateAccess=true))
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Capture", meta=(AllowPrivateAccess=true))
 	TObjectPtr<UCPoseReceiverComponent> PoseReceiver;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Capture", meta=(AllowPrivateAccess=true))
+	TObjectPtr<UCPoseApplierComponent> PoseApplier;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture", meta=(AllowPrivateAccess=true))
+	TMap<int32, FName> LandmarkToBone;
+	
+	UPROPERTY()
+	TArray<FName> BoneNames;
 	
 public:
 	ACCapturedPawn();
