@@ -29,22 +29,16 @@ def do_capture(sock, server_address_port):
             # ---- EXTRACT AND SEND POSE DATA HERE ----
             if results.pose_landmarks:
                 # Build a simple serializable structure
-                landmarks = []
+                landmarks:str = ""
                 for lm in results.pose_landmarks.landmark:
-                    landmarks.append({
-                        "x": round(lm.x, 3),
-                        "y": round(lm.y,3),
-                        "z": round(lm.z,3)
-                    })
-
-                # Example payload: frame index could be added if needed
-                payload = {
-                    "landmarks": landmarks
-                }
+                    landmarks += f"{round(lm.x, 3)},{round(lm.y,3)},{round(lm.z,3)},"
+                    
+                landmarks = landmarks.rstrip(",")
 
                 # Serialize to JSON and send via UDP
-                data_bytes = json.dumps(payload).encode("utf-8")
-                sock.sendto(data_bytes, server_address_port)
+                data: bytes = landmarks.encode()
+                # data_bytes = json.dumps(payload).encode("utf-8")
+                sock.sendto(data, server_address_port)
             # -----------------------------------------
 
             # Draw the pose annotation on the image.
