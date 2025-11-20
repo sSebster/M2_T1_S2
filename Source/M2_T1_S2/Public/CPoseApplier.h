@@ -17,11 +17,6 @@ class M2_T1_S2_API UCPoseApplierComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
-	UPROPERTY()
-	UPoseableMeshComponent* PoseableMeshComponent = nullptr;
-	UPROPERTY()
-	UCPoseReceiverComponent* PoseReceiver = nullptr;
-	
 	UPROPERTY(EditDefaultsOnly, Category="Capture")
 	TMap<int32, FName> LandmarkToBone;
 	
@@ -40,19 +35,38 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category="Capture")
 	TArray<FName> BoneNamesToMirror;
 
-	float PrevScaleCM = 30.f;
+	// How far in front of the camera to place the landmarks (in cm)
+	UPROPERTY(EditDefaultsOnly, Category="Capture|Fake")
+	float BaseDepthCM = 150.f;
+
+	// How much the incoming Z value affects depth (in cm)
+	UPROPERTY(EditDefaultsOnly, Category="Capture|Fake")
+	float DepthScaleCM = 300.f;
+
+	// Multiplier to increase the distance between landmarks in world space
+	UPROPERTY(EditDefaultsOnly, Category="Capture|Fake")
+	float SpreadScale = 1.5f;
+	
+	UPROPERTY(BlueprintReadWrite, Category="Capture|Fake", meta=(AllowPrivateAccess=true))
+	TArray<TObjectPtr<USceneComponent>> FakeBones;
 	
 private:
 	TArray<FName> BoneNames;
 	
+	UPROPERTY()
+	APlayerController* PlayerController = nullptr;
+	UPROPERTY()
+	UPoseableMeshComponent* PoseableMeshComponent = nullptr;
+	UPROPERTY()
+	UCPoseReceiverComponent* PoseReceiver = nullptr;
+	
 public:
 	UCPoseApplierComponent();
 	
-	void Init(UPoseableMeshComponent* PoseableMesh, UCPoseReceiverComponent* Receiver);
+	void Init(UPoseableMeshComponent* PoseableMesh, UCPoseReceiverComponent* Receiver, APlayerController* InPlayerController);
 
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	
 private:
 	FVector ConvertOne(const FCPoseLandmark& L, const FCPoseLandmark& Pelvis, float ScaleCM, bool bInMirrorY) const;
-	FVector ConvertLmToComponent(const TArray<FCPoseLandmark>& Landmarks, float ScaleCM, const FCPoseLandmark& RootPelvis, bool bInMirrorY);
 };

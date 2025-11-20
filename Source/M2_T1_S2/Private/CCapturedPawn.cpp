@@ -26,7 +26,7 @@ void ACCapturedPawn::BeginPlay()
 	Super::BeginPlay();
 	
 	PoseableMesh->GetBoneNames(BoneNames);
-	PoseApplier->Init(PoseableMesh.Get(), PoseReceiver.Get());
+	PoseApplier->Init(PoseableMesh.Get(), PoseReceiver.Get(), CastChecked<APlayerController>(GetController()));
 }
 
 void ACCapturedPawn::Tick(float DeltaTime)
