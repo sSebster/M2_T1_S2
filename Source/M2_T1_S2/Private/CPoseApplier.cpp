@@ -89,23 +89,29 @@ void UCPoseApplierComponent::TickComponent(
 		PoseableMeshComponent->SetBoneLocationByName(Name, LerpedPos, EBoneSpaces::WorldSpace);
 	}
 	
+	// Moving pelvis
 	const FVector LeftHipPos = FakeBones[23]->GetComponentLocation();
 	const FVector RightHipPos = FakeBones[24]->GetComponentLocation();
-	
 	const FVector PelvisPos = (LeftHipPos + RightHipPos) * 0.5f;
-	
 	PoseableMeshComponent->SetBoneLocationByName(TEXT("pelvis"), PelvisPos, EBoneSpaces::WorldSpace);
+
+	// // Bone Rotation
+	// FVector ShoulderL = PoseableMeshComponent->GetBoneLocationByName(BoneNamesToMirror[11], EBoneSpaces::WorldSpace);
+	// FVector ArmL = PoseableMeshComponent->GetBoneLocationByName(BoneNamesToMirror[13], EBoneSpaces::WorldSpace);
+	//
+	// auto rotation = FQuat::FindBetweenVectors(ShoulderL - ArmL, FVector::UpVector);
+	// PoseableMeshComponent->SetBoneRotationByName(BoneNamesToMirror[11], FRotator(rotation), EBoneSpaces::WorldSpace);
 }
 
 FVector UCPoseApplierComponent::ConvertOne(const FCPoseLandmark& L, const FCPoseLandmark& Pelvis, float ScaleCM, bool bInMirrorY) const
 {
-	const float xn = (L.X - Pelvis.X);
-	const float yn = ((1.f - L.Y) - (1.f - Pelvis.Y));
-	const float zn = (-(L.Z - Pelvis.Z));
+	const float Xn = (L.X - Pelvis.X);
+	const float Yn = ((1.f - L.Y) - (1.f - Pelvis.Y));
+	const float Zn = (-(L.Z - Pelvis.Z));
 
-	const float Y = xn * (bMirrorY ? -1.f : 1.f) * ScaleCM;
-	const float Z = yn * ScaleCM;
-	const float X = zn * ScaleCM;
+	const float Y = Xn * (bMirrorY ? -1.f : 1.f) * ScaleCM;
+	const float Z = Yn * ScaleCM;
+	const float X = Zn * ScaleCM;
 
 	return FVector(X, Y, Z);
 }
