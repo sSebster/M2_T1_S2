@@ -43,7 +43,7 @@ void UCPoseApplierComponent::TickComponent(
 		return;
 	}
 
-	const float SmoothingSpeed = 10.f;
+	constexpr float SmoothingSpeed = 10.f;
 	const float Alpha = 1.f - FMath::Exp(-SmoothingSpeed * DeltaTime);
 	
 	int32 ViewX, ViewY;
@@ -51,19 +51,10 @@ void UCPoseApplierComponent::TickComponent(
 		
 	for (int32 i = 0; i < 33; ++i)
 	{
-		// if (!BoneNamesToMirror.IsValidIndex(i))
-		// {
-		// 	continue;
-		// }
-		//
-		// const FName Name = BoneNamesToMirror[i];
-		// if (Name == NAME_None)
-		// 	continue;
-
-		int32 BaseIndex = i * 3;
-		float X = FCString::Atof(*Points[BaseIndex]);
-		float Y = FCString::Atof(*Points[BaseIndex + 1]);
-		float Z = FCString::Atof(*Points[BaseIndex + 2]);
+		const int32 BaseIndex = i * 3;
+		const float X = FCString::Atof(*Points[BaseIndex]);
+		const float Y = FCString::Atof(*Points[BaseIndex + 1]);
+		const float Z = FCString::Atof(*Points[BaseIndex + 2]);
 
 		const FVector2D ScreenSpacePos(X * ViewX, Y * ViewY);
 		
@@ -88,11 +79,22 @@ void UCPoseApplierComponent::TickComponent(
 		// UE_LOG(LogTemp, Log, TEXT("[%i] %s | %s"), i, *ScreenSpacePos.ToString(), *LerpedPos.ToString());
 		DrawDebugPoint(GetWorld(), LerpedPos, 6.f, FColor::Cyan, false, 0.5f);
 		
-		// PoseableMeshComponent->SetBoneTransformByName(
-		// 	Name,
-		// 	Transform,
-		// 	EBoneSpaces::WorldSpace);
+		if (!BoneNamesToMirror.IsValidIndex(i))
+			continue;
+		
+		const FName Name = BoneNamesToMirror[i];
+		if (Name == NAME_None)
+			continue;
+		
+		PoseableMeshComponent->SetBoneLocationByName(Name, LerpedPos, EBoneSpaces::WorldSpace);
 	}
+	
+	const FVector LeftHipPos = FakeBones[23]->GetComponentLocation();
+	const FVector RightHipPos = FakeBones[24]->GetComponentLocation();
+	
+	const FVector PelvisPos = (LeftHipPos + RightHipPos) * 0.5f;
+	
+	PoseableMeshComponent->SetBoneLocationByName(TEXT("pelvis"), PelvisPos, EBoneSpaces::WorldSpace);
 }
 
 FVector UCPoseApplierComponent::ConvertOne(const FCPoseLandmark& L, const FCPoseLandmark& Pelvis, float ScaleCM, bool bInMirrorY) const
