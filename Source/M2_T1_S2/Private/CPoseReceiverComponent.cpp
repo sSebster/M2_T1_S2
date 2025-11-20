@@ -126,8 +126,8 @@ void UCPoseReceiverComponent::ReceiveData()
 		{
 			FString String = FString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(Buffer.GetData())));
 			LastData = String;
-			UE_LOG(LogTemp, Log, TEXT("%s"), *String);
-			GEngine->AddOnScreenDebugMessage(1004, 5.f, FColor::Green, FString::Printf(TEXT("Received %d bytes as %s"), BytesRead, *String));
+			// UE_LOG(LogTemp, Log, TEXT("Received:  %s"), *String);
+			// GEngine->AddOnScreenDebugMessage(1004, 5.f, FColor::Green, FString::Printf(TEXT("Received %d bytes as %s"), BytesRead, *String));
 		}
 	}
 }
