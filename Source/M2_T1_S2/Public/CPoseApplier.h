@@ -15,6 +15,46 @@ class USplineMeshComponent;
 class UStaticMesh;
 class UMaterialInterface;
 
+USTRUCT(BlueprintType)
+struct FWeightedLandmark
+{
+    GENERATED_BODY()
+
+    // Index into FakeBones / incoming landmark array (0..32 for MediaPipe body)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Spline")
+    int32 LandmarkIndex = 0;
+
+    // Thickness weight at this point. Final width = Weight * WidthPerWeight
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Spline")
+    float Weight = 1.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FSplineChainConfig
+{
+    GENERATED_BODY()
+
+    // Just a label to quickly identify the chain in the component (optional)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Spline")
+    FName DebugName;
+
+    // List of weighted landmarks forming this chain, in order. Needs at least 2 points.
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Spline")
+    TArray<FWeightedLandmark> Points;
+};
+
+USTRUCT()
+struct FSplineRuntimeChain
+{
+    GENERATED_BODY()
+
+    UPROPERTY(Transient)
+    TObjectPtr<USplineComponent> Spline = nullptr;
+
+    UPROPERTY(Transient)
+    TArray<TObjectPtr<USplineMeshComponent>> Segments;
+};
+
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable)
 class M2_T1_S2_API UCPoseApplierComponent : public UActorComponent
 {
@@ -51,26 +91,28 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category="Capture|Fake")
 	float SpreadScale = 1.5f;
 	
-	UPROPERTY(BlueprintReadWrite, Category="Capture|Fake", meta=(AllowPrivateAccess=true))
-	TArray<TObjectPtr<USceneComponent>> FakeBones;
+ UPROPERTY(BlueprintReadWrite, Category="Capture|Fake", meta=(AllowPrivateAccess=true))
+ TArray<TObjectPtr<USceneComponent>> FakeBones;
 
-	// Visual splines between selected landmark chains (e.g., 11-13-15, ...)
-	UPROPERTY(EditDefaultsOnly, Category="Capture|Spline")
-	bool bEnableSplines = true;
+ // Visual splines are driven by designer-authored chains
+ UPROPERTY(EditAnywhere, Category="Capture|Spline")
+ bool bEnableSplines = true;
 
-	// Mesh used by SplineMeshComponents (ideally a cylinder authored along +X)
-	UPROPERTY(EditDefaultsOnly, Category="Capture|Spline")
-	TObjectPtr<UStaticMesh> SplineStaticMesh = nullptr;
+ // Designer-configurable chains of landmarks
+ UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Spline")
+ TArray<FSplineChainConfig> SplineChains;
 
-	UPROPERTY(EditDefaultsOnly, Category="Capture|Spline")
-	TObjectPtr<UMaterialInterface> SplineMaterial = nullptr;
+ // Mesh used by SplineMeshComponents (ideally a cylinder authored along +X)
+ UPROPERTY(EditAnywhere, Category="Capture|Spline")
+ TObjectPtr<UStaticMesh> SplineStaticMesh = nullptr;
 
-	// Y/Z scale for the spline mesh (relative to the mesh import size)
-	UPROPERTY(EditDefaultsOnly, Category="Capture|Spline")
-	FVector2D SplineStartScale = FVector2D(0.2f, 0.2f);
+ // Optional override: if set, applied to all material slots of each segment
+ UPROPERTY(EditAnywhere, Category="Capture|Spline")
+ TObjectPtr<UMaterialInterface> SplineMaterial = nullptr;
 
-	UPROPERTY(EditDefaultsOnly, Category="Capture|Spline")
-	FVector2D SplineEndScale = FVector2D(0.2f, 0.2f);
+ // Width per unit weight. Final width at a point = Weight * WidthPerWeight
+ UPROPERTY(EditAnywhere, Category="Capture|Spline", meta=(ClampMin="0.0"))
+ float WidthPerWeight = 0.2f;
 
 private:
 	TArray<FName> BoneNames;
@@ -79,37 +121,12 @@ private:
 	APlayerController* PlayerController = nullptr;
 	UPROPERTY()
 	UPoseableMeshComponent* PoseableMeshComponent = nullptr;
-	UPROPERTY()
-	UCPoseReceiverComponent* PoseReceiver = nullptr;
-    
-	// One spline per chain (3 points -> 2 segments)
-	UPROPERTY(Transient)
-	TObjectPtr<USplineComponent> Spline_11_13_15 = nullptr;
-	UPROPERTY(Transient)
-	TObjectPtr<USplineMeshComponent> Spline_11_13_15_Seg0 = nullptr; // 11->13
-	UPROPERTY(Transient)
-	TObjectPtr<USplineMeshComponent> Spline_11_13_15_Seg1 = nullptr; // 13->15
+ UPROPERTY()
+ UCPoseReceiverComponent* PoseReceiver = nullptr;
 
-	UPROPERTY(Transient)
-	TObjectPtr<USplineComponent> Spline_12_14_16 = nullptr;
-	UPROPERTY(Transient)
-	TObjectPtr<USplineMeshComponent> Spline_12_14_16_Seg0 = nullptr; // 12->14
-	UPROPERTY(Transient)
-	TObjectPtr<USplineMeshComponent> Spline_12_14_16_Seg1 = nullptr; // 14->16
-
-	UPROPERTY(Transient)
-	TObjectPtr<USplineComponent> Spline_23_25_27 = nullptr;
-	UPROPERTY(Transient)
-	TObjectPtr<USplineMeshComponent> Spline_23_25_27_Seg0 = nullptr; // 23->25
-	UPROPERTY(Transient)
-	TObjectPtr<USplineMeshComponent> Spline_23_25_27_Seg1 = nullptr; // 25->27
-
-	UPROPERTY(Transient)
-	TObjectPtr<USplineComponent> Spline_24_26_28 = nullptr;
-	UPROPERTY(Transient)
-	TObjectPtr<USplineMeshComponent> Spline_24_26_28_Seg0 = nullptr; // 24->26
-	UPROPERTY(Transient)
-	TObjectPtr<USplineMeshComponent> Spline_24_26_28_Seg1 = nullptr; // 26->28
+ // Runtime data for spawned spline components per configured chain
+ UPROPERTY(Transient)
+ TArray<FSplineRuntimeChain> RuntimeChains;
 	
 public:
     UCPoseApplierComponent();
@@ -123,13 +140,6 @@ public:
 private:
     FVector ConvertOne(const FCPoseLandmark& L, const FCPoseLandmark& Pelvis, float ScaleCM, bool bInMirrorY) const;
 
-    void EnsureSplineChainCreated(const FName& BaseName,
-        TObjectPtr<USplineComponent>& OutSpline,
-        TObjectPtr<USplineMeshComponent>& OutSeg0,
-        TObjectPtr<USplineMeshComponent>& OutSeg1);
-
-    void UpdateSplineChain(TObjectPtr<USplineComponent>& InSpline,
-        TObjectPtr<USplineMeshComponent>& InSeg0,
-        TObjectPtr<USplineMeshComponent>& InSeg1,
-        int32 Idx0, int32 Idx1, int32 Idx2);
+    void EnsureDynamicChainsCreated();
+    void UpdateDynamicChains();
 };

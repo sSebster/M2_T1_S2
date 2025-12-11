@@ -20,13 +20,10 @@ UCPoseApplierComponent::UCPoseApplierComponent()
 void UCPoseApplierComponent::BeginPlay()
 {
     Super::BeginPlay();
-    // Pre-create spline chains so they are visible even before first data update (optional)
+    // Pre-create dynamic spline chains so they are visible even before first data update (optional)
     if (bEnableSplines)
     {
-        EnsureSplineChainCreated(TEXT("Spline_11_13_15"), Spline_11_13_15, Spline_11_13_15_Seg0, Spline_11_13_15_Seg1);
-        EnsureSplineChainCreated(TEXT("Spline_12_14_16"), Spline_12_14_16, Spline_12_14_16_Seg0, Spline_12_14_16_Seg1);
-        EnsureSplineChainCreated(TEXT("Spline_23_25_27"), Spline_23_25_27, Spline_23_25_27_Seg0, Spline_23_25_27_Seg1);
-        EnsureSplineChainCreated(TEXT("Spline_24_26_28"), Spline_24_26_28, Spline_24_26_28_Seg0, Spline_24_26_28_Seg1);
+        EnsureDynamicChainsCreated();
     }
 }
 
@@ -112,20 +109,11 @@ void UCPoseApplierComponent::TickComponent(
 	const FVector PelvisPos = (LeftHipPos + RightHipPos) * 0.5f;
 	PoseableMeshComponent->SetBoneLocationByName(TEXT("pelvis"), PelvisPos, EBoneSpaces::WorldSpace);
 	
-    // Update visual splines for selected chains
-    if (bEnableSplines && SplineStaticMesh && FakeBones.Num() >= 29)
+    // Update visual splines for configured chains
+    if (bEnableSplines && SplineStaticMesh)
     {
-        EnsureSplineChainCreated(TEXT("Spline_11_13_15"), Spline_11_13_15, Spline_11_13_15_Seg0, Spline_11_13_15_Seg1);
-        UpdateSplineChain(Spline_11_13_15, Spline_11_13_15_Seg0, Spline_11_13_15_Seg1, 11, 13, 15);
-
-        EnsureSplineChainCreated(TEXT("Spline_12_14_16"), Spline_12_14_16, Spline_12_14_16_Seg0, Spline_12_14_16_Seg1);
-        UpdateSplineChain(Spline_12_14_16, Spline_12_14_16_Seg0, Spline_12_14_16_Seg1, 12, 14, 16);
-
-        EnsureSplineChainCreated(TEXT("Spline_23_25_27"), Spline_23_25_27, Spline_23_25_27_Seg0, Spline_23_25_27_Seg1);
-        UpdateSplineChain(Spline_23_25_27, Spline_23_25_27_Seg0, Spline_23_25_27_Seg1, 23, 25, 27);
-
-        EnsureSplineChainCreated(TEXT("Spline_24_26_28"), Spline_24_26_28, Spline_24_26_28_Seg0, Spline_24_26_28_Seg1);
-        UpdateSplineChain(Spline_24_26_28, Spline_24_26_28_Seg0, Spline_24_26_28_Seg1, 24, 26, 28);
+        EnsureDynamicChainsCreated();
+        UpdateDynamicChains();
     }
 }
 
@@ -142,103 +130,202 @@ FVector UCPoseApplierComponent::ConvertOne(const FCPoseLandmark& L, const FCPose
 	return FVector(X, Y, Z);
 }
 
-void UCPoseApplierComponent::EnsureSplineChainCreated(const FName& BaseName,
-    TObjectPtr<USplineComponent>& OutSpline,
-    TObjectPtr<USplineMeshComponent>& OutSeg0,
-    TObjectPtr<USplineMeshComponent>& OutSeg1)
+void UCPoseApplierComponent::EnsureDynamicChainsCreated()
 {
+    if (!bEnableSplines || !SplineStaticMesh)
+	    return;
+
     AActor* OwnerActor = GetOwner();
     if (!OwnerActor)
-        return;
+	    return;
 
     USceneComponent* Root = OwnerActor->GetRootComponent();
 
-    if (!OutSpline)
+    // Resize runtime array to match configs
+    if (RuntimeChains.Num() != SplineChains.Num())
     {
-        OutSpline = NewObject<USplineComponent>(OwnerActor, USplineComponent::StaticClass(), BaseName);
-        OutSpline->SetMobility(EComponentMobility::Movable);
-        OutSpline->RegisterComponent();
-        if (Root)
+        // Best effort cleanup of previous components if any
+        for (FSplineRuntimeChain& Chain : RuntimeChains)
         {
-            OutSpline->AttachToComponent(Root, FAttachmentTransformRules::KeepWorldTransform);
+            if (Chain.Spline)
+            {
+                Chain.Spline->DestroyComponent();
+            }
+            for (USplineMeshComponent* Seg : Chain.Segments)
+            {
+                if (Seg)
+                {
+                    Seg->DestroyComponent();
+                }
+            }
         }
-        // Ensure it has 3 points
-        OutSpline->ClearSplinePoints(false);
-        OutSpline->AddSplinePoint(FVector::ZeroVector, ESplineCoordinateSpace::Local, false);
-        OutSpline->AddSplinePoint(FVector::ZeroVector, ESplineCoordinateSpace::Local, false);
-        OutSpline->AddSplinePoint(FVector::ZeroVector, ESplineCoordinateSpace::Local, false);
-        OutSpline->SetClosedLoop(false, false);
-        OutSpline->UpdateSpline();
+        RuntimeChains.Empty(SplineChains.Num());
+        RuntimeChains.SetNum(SplineChains.Num());
     }
 
-    auto CreateSeg = [&](TObjectPtr<USplineMeshComponent>& Seg, const FString& Suffix)
+    for (int32 i = 0; i < SplineChains.Num(); ++i)
     {
-        if (!Seg)
-        {
-            const FName CompName(*(BaseName.ToString() + TEXT("_") + Suffix));
-            Seg = NewObject<USplineMeshComponent>(OwnerActor, USplineMeshComponent::StaticClass(), CompName);
-            Seg->SetMobility(EComponentMobility::Movable);
-            Seg->SetStaticMesh(SplineStaticMesh);
-            if (SplineMaterial)
-            {
-                Seg->SetMaterial(0, SplineMaterial);
-            }
-            Seg->SetForwardAxis(ESplineMeshAxis::X, false);
-            Seg->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-            Seg->RegisterComponent();
-            // Attach to the spline so we can use its local space
-            Seg->AttachToComponent(OutSpline, FAttachmentTransformRules::KeepRelativeTransform);
-        }
-    };
+        const FSplineChainConfig& Config = SplineChains[i];
+        FSplineRuntimeChain& RT = RuntimeChains[i];
 
-    CreateSeg(OutSeg0, TEXT("Seg0"));
-    CreateSeg(OutSeg1, TEXT("Seg1"));
+        const int32 NumPoints = Config.Points.Num();
+        const int32 DesiredSegments = FMath::Max(0, NumPoints - 1);
+
+        if (!RT.Spline)
+        {
+            const FName SplineName = Config.DebugName.IsNone() ? FName(*FString::Printf(TEXT("DynSpline_%d"), i))
+                                                              : FName(*FString::Printf(TEXT("DynSpline_%d_%s"), i, *Config.DebugName.ToString()));
+            RT.Spline = NewObject<USplineComponent>(OwnerActor, USplineComponent::StaticClass(), SplineName);
+            RT.Spline->SetMobility(EComponentMobility::Movable);
+            RT.Spline->RegisterComponent();
+            if (Root)
+            {
+                RT.Spline->AttachToComponent(Root, FAttachmentTransformRules::KeepWorldTransform);
+            }
+        }
+
+        // Ensure spline has NumPoints points
+        if (RT.Spline->GetNumberOfSplinePoints() != NumPoints)
+        {
+            RT.Spline->ClearSplinePoints(false);
+            for (int32 p = 0; p < NumPoints; ++p)
+            {
+                RT.Spline->AddSplinePoint(FVector::ZeroVector, ESplineCoordinateSpace::Local, false);
+            }
+            RT.Spline->SetClosedLoop(false, false);
+            RT.Spline->UpdateSpline();
+        }
+
+        // Ensure segments count matches
+        if (RT.Segments.Num() != DesiredSegments)
+        {
+            // Destroy old
+            for (USplineMeshComponent* Seg : RT.Segments)
+            {
+                if (Seg)
+                {
+                    Seg->DestroyComponent();
+                }
+            }
+            RT.Segments.Empty(DesiredSegments);
+            RT.Segments.Reserve(DesiredSegments);
+
+            for (int32 s = 0; s < DesiredSegments; ++s)
+            {
+                const FName SegName(*FString::Printf(TEXT("%s_Seg_%d"), *RT.Spline->GetName(), s));
+                USplineMeshComponent* Seg = NewObject<USplineMeshComponent>(OwnerActor, USplineMeshComponent::StaticClass(), SegName);
+                Seg->SetMobility(EComponentMobility::Movable);
+                Seg->SetStaticMesh(SplineStaticMesh);
+
+                // Apply materials: either provided SplineMaterial to all slots or copy from mesh
+                int32 NumSlots = 0;
+                if (SplineStaticMesh)
+                {
+                    NumSlots = SplineStaticMesh->GetStaticMaterials().Num();
+                }
+                if (NumSlots <= 0)
+                {
+                    NumSlots = Seg->GetNumMaterials();
+                }
+                for (int32 Slot = 0; Slot < NumSlots; ++Slot)
+                {
+                    if (SplineMaterial)
+                    {
+                        Seg->SetMaterial(Slot, SplineMaterial);
+                    }
+                    else if (SplineStaticMesh)
+                    {
+                        if (UMaterialInterface* MeshMat = SplineStaticMesh->GetMaterial(Slot))
+                        {
+                            Seg->SetMaterial(Slot, MeshMat);
+                        }
+                    }
+                }
+
+                Seg->SetForwardAxis(ESplineMeshAxis::X, false);
+                Seg->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+                Seg->RegisterComponent();
+                Seg->AttachToComponent(RT.Spline, FAttachmentTransformRules::KeepRelativeTransform);
+
+                RT.Segments.Add(Seg);
+            }
+        }
+    }
 }
 
-void UCPoseApplierComponent::UpdateSplineChain(TObjectPtr<USplineComponent>& InSpline,
-    TObjectPtr<USplineMeshComponent>& InSeg0,
-    TObjectPtr<USplineMeshComponent>& InSeg1,
-    int32 Idx0, int32 Idx1, int32 Idx2)
+void UCPoseApplierComponent::UpdateDynamicChains()
 {
-    if (!InSpline || !InSeg0 || !InSeg1 || !SplineStaticMesh)
-        return;
-    if (!FakeBones.IsValidIndex(Idx0) || !FakeBones.IsValidIndex(Idx1) || !FakeBones.IsValidIndex(Idx2))
-        return;
-    USceneComponent* B0 = FakeBones[Idx0];
-    USceneComponent* B1 = FakeBones[Idx1];
-    USceneComponent* B2 = FakeBones[Idx2];
-    if (!B0 || !B1 || !B2)
-        return;
+    if (!bEnableSplines || !SplineStaticMesh)
+	    return;
 
-    const FVector P0 = B0->GetComponentLocation();
-    const FVector P1 = B1->GetComponentLocation();
-    const FVector P2 = B2->GetComponentLocation();
-
-    // Update spline points in world space
-    InSpline->SetLocationAtSplinePoint(0, P0, ESplineCoordinateSpace::World, false);
-    InSpline->SetLocationAtSplinePoint(1, P1, ESplineCoordinateSpace::World, false);
-    InSpline->SetLocationAtSplinePoint(2, P2, ESplineCoordinateSpace::World, false);
-    InSpline->UpdateSpline();
-
-    const FTransform SplineXform = InSpline->GetComponentTransform();
-    const FVector L0 = SplineXform.InverseTransformPosition(P0);
-    const FVector L1 = SplineXform.InverseTransformPosition(P1);
-    const FVector L2 = SplineXform.InverseTransformPosition(P2);
-
-    auto SetSeg = [&](USplineMeshComponent* Seg, const FVector& A, const FVector& B)
+    for (int32 i = 0; i < SplineChains.Num(); ++i)
     {
-        const FVector AB = (B - A);
-        const float Len = AB.Length();
-        const FVector Tangent = (Len > KINDA_SMALL_NUMBER) ? (AB * 0.5f) : FVector::ZeroVector;
-        // Ensure the mesh updates immediately when endpoints change
-        Seg->SetStartAndEnd(A, Tangent, B, Tangent, true);
-        Seg->SetStartScale(FVector2D(SplineStartScale));
-        Seg->SetEndScale(FVector2D(SplineEndScale));
-        Seg->UpdateMesh();
-    };
+        const FSplineChainConfig& Config = SplineChains[i];
+        FSplineRuntimeChain& RT = RuntimeChains.IsValidIndex(i) ? RuntimeChains[i] : *new FSplineRuntimeChain();
+        if (!RT.Spline)
+	        continue;
 
-    SetSeg(InSeg0, L0, L1);
-    SetSeg(InSeg1, L1, L2);
+        const int32 NumPoints = Config.Points.Num();
+        if (NumPoints < 2)
+	        continue;
+
+        // Gather world and local positions and weights
+        TArray<FVector> WorldPts;
+        WorldPts.SetNum(NumPoints);
+        TArray<FVector> LocalPts;
+        LocalPts.SetNum(NumPoints);
+        TArray<float> Weights;
+        Weights.SetNum(NumPoints);
+
+        bool bAllValid = true;
+        for (int32 p = 0; p < NumPoints; ++p)
+        {
+            const int32 LM = Config.Points[p].LandmarkIndex;
+            const float W = Config.Points[p].Weight;
+            Weights[p] = W;
+            if (!FakeBones.IsValidIndex(LM) || !FakeBones[LM])
+            {
+                bAllValid = false;
+                break;
+            }
+            const FVector P = FakeBones[LM]->GetComponentLocation();
+            WorldPts[p] = P;
+        }
+    	
+        if (!bAllValid)
+	        continue;
+
+        // Update spline points in world space
+        for (int32 p = 0; p < NumPoints; ++p)
+	        RT.Spline->SetLocationAtSplinePoint(p, WorldPts[p], ESplineCoordinateSpace::World, false);
+    	
+        RT.Spline->UpdateSpline();
+
+        const FTransform SplineXform = RT.Spline->GetComponentTransform();
+        for (int32 p = 0; p < NumPoints; ++p)
+	        LocalPts[p] = SplineXform.InverseTransformPosition(WorldPts[p]);
+
+        // Update segments
+        for (int32 s = 0; s < NumPoints - 1; ++s)
+        {
+            USplineMeshComponent* Seg = RT.Segments.IsValidIndex(s) ? RT.Segments[s] : nullptr;
+            if (!Seg)
+	            continue;
+        	
+            const FVector A = LocalPts[s];
+            const FVector B = LocalPts[s + 1];
+            const FVector AB = B - A;
+            const float Len = AB.Length();
+            const FVector Tangent = (Len > KINDA_SMALL_NUMBER) ? (AB * 0.5f) : FVector::ZeroVector;
+
+            Seg->SetStartAndEnd(A, Tangent, B, Tangent, true);
+            const float StartW = Weights[s] * WidthPerWeight;
+            const float EndW = Weights[s + 1] * WidthPerWeight;
+            Seg->SetStartScale(FVector2D(StartW, StartW));
+            Seg->SetEndScale(FVector2D(EndW, EndW));
+            Seg->UpdateMesh();
+        }
+    }
 }
 
 
