@@ -20,6 +20,7 @@ UCPoseApplierComponent::UCPoseApplierComponent()
 void UCPoseApplierComponent::BeginPlay()
 {
     Super::BeginPlay();
+	
     // Pre-create dynamic spline chains so they are visible even before first data update (optional)
     if (bEnableSplines)
     {
@@ -154,9 +155,7 @@ void UCPoseApplierComponent::EnsureDynamicChainsCreated()
             for (USplineMeshComponent* Seg : Chain.Segments)
             {
                 if (Seg)
-                {
-                    Seg->DestroyComponent();
-                }
+	                Seg->DestroyComponent();
             }
         }
         RuntimeChains.Empty(SplineChains.Num());
@@ -178,10 +177,9 @@ void UCPoseApplierComponent::EnsureDynamicChainsCreated()
             RT.Spline = NewObject<USplineComponent>(OwnerActor, USplineComponent::StaticClass(), SplineName);
             RT.Spline->SetMobility(EComponentMobility::Movable);
             RT.Spline->RegisterComponent();
+        	
             if (Root)
-            {
-                RT.Spline->AttachToComponent(Root, FAttachmentTransformRules::KeepWorldTransform);
-            }
+	            RT.Spline->AttachToComponent(Root, FAttachmentTransformRules::KeepWorldTransform);
         }
 
         // Ensure spline has NumPoints points
@@ -189,9 +187,8 @@ void UCPoseApplierComponent::EnsureDynamicChainsCreated()
         {
             RT.Spline->ClearSplinePoints(false);
             for (int32 p = 0; p < NumPoints; ++p)
-            {
-                RT.Spline->AddSplinePoint(FVector::ZeroVector, ESplineCoordinateSpace::Local, false);
-            }
+	            RT.Spline->AddSplinePoint(FVector::ZeroVector, ESplineCoordinateSpace::Local, false);
+        	
             RT.Spline->SetClosedLoop(false, false);
             RT.Spline->UpdateSpline();
         }
@@ -203,9 +200,7 @@ void UCPoseApplierComponent::EnsureDynamicChainsCreated()
             for (USplineMeshComponent* Seg : RT.Segments)
             {
                 if (Seg)
-                {
-                    Seg->DestroyComponent();
-                }
+	                Seg->DestroyComponent();
             }
             RT.Segments.Empty(DesiredSegments);
             RT.Segments.Reserve(DesiredSegments);
@@ -220,13 +215,9 @@ void UCPoseApplierComponent::EnsureDynamicChainsCreated()
                 // Apply materials: either provided SplineMaterial to all slots or copy from mesh
                 int32 NumSlots = 0;
                 if (SplineStaticMesh)
-                {
-                    NumSlots = SplineStaticMesh->GetStaticMaterials().Num();
-                }
+	                NumSlots = SplineStaticMesh->GetStaticMaterials().Num();
                 if (NumSlots <= 0)
-                {
-                    NumSlots = Seg->GetNumMaterials();
-                }
+	                NumSlots = Seg->GetNumMaterials();
                 for (int32 Slot = 0; Slot < NumSlots; ++Slot)
                 {
                     if (SplineMaterial)
@@ -236,9 +227,7 @@ void UCPoseApplierComponent::EnsureDynamicChainsCreated()
                     else if (SplineStaticMesh)
                     {
                         if (UMaterialInterface* MeshMat = SplineStaticMesh->GetMaterial(Slot))
-                        {
-                            Seg->SetMaterial(Slot, MeshMat);
-                        }
+	                        Seg->SetMaterial(Slot, MeshMat);
                     }
                 }
 

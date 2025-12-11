@@ -91,28 +91,28 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category="Capture|Fake")
 	float SpreadScale = 1.5f;
 	
- UPROPERTY(BlueprintReadWrite, Category="Capture|Fake", meta=(AllowPrivateAccess=true))
- TArray<TObjectPtr<USceneComponent>> FakeBones;
-
- // Visual splines are driven by designer-authored chains
- UPROPERTY(EditAnywhere, Category="Capture|Spline")
- bool bEnableSplines = true;
-
- // Designer-configurable chains of landmarks
- UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Spline")
- TArray<FSplineChainConfig> SplineChains;
-
- // Mesh used by SplineMeshComponents (ideally a cylinder authored along +X)
- UPROPERTY(EditAnywhere, Category="Capture|Spline")
- TObjectPtr<UStaticMesh> SplineStaticMesh = nullptr;
-
- // Optional override: if set, applied to all material slots of each segment
- UPROPERTY(EditAnywhere, Category="Capture|Spline")
- TObjectPtr<UMaterialInterface> SplineMaterial = nullptr;
-
- // Width per unit weight. Final width at a point = Weight * WidthPerWeight
- UPROPERTY(EditAnywhere, Category="Capture|Spline", meta=(ClampMin="0.0"))
- float WidthPerWeight = 0.2f;
+	UPROPERTY(BlueprintReadWrite, Category="Capture|Fake", meta=(AllowPrivateAccess=true))
+	TArray<TObjectPtr<USceneComponent>> FakeBones;
+	
+	// Visual splines are driven by designer-authored chains
+	UPROPERTY(EditAnywhere, Category="Capture|Spline")
+	bool bEnableSplines = true;
+	
+	// Designer-configurable chains of landmarks
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Spline")
+	TArray<FSplineChainConfig> SplineChains;
+	
+	// Mesh used by SplineMeshComponents (ideally a cylinder authored along +X)
+	UPROPERTY(EditAnywhere, Category="Capture|Spline")
+	TObjectPtr<UStaticMesh> SplineStaticMesh = nullptr;
+	
+	// Optional override: if set, applied to all material slots of each segment
+	UPROPERTY(EditAnywhere, Category="Capture|Spline")
+	TObjectPtr<UMaterialInterface> SplineMaterial = nullptr;
+	
+	// Width per unit weight. Final width at a point = Weight * WidthPerWeight
+	UPROPERTY(EditAnywhere, Category="Capture|Spline", meta=(ClampMin="0.0"))
+	float WidthPerWeight = 0.2f;
 
 private:
 	TArray<FName> BoneNames;
@@ -121,12 +121,12 @@ private:
 	APlayerController* PlayerController = nullptr;
 	UPROPERTY()
 	UPoseableMeshComponent* PoseableMeshComponent = nullptr;
- UPROPERTY()
- UCPoseReceiverComponent* PoseReceiver = nullptr;
+	UPROPERTY()
+	UCPoseReceiverComponent* PoseReceiver = nullptr;
 
- // Runtime data for spawned spline components per configured chain
- UPROPERTY(Transient)
- TArray<FSplineRuntimeChain> RuntimeChains;
+	// Runtime data for spawned spline components per configured chain
+	UPROPERTY(Transient)
+	TArray<FSplineRuntimeChain> RuntimeChains;
 	
 public:
     UCPoseApplierComponent();
