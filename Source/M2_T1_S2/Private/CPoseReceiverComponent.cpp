@@ -124,6 +124,9 @@ void UCPoseReceiverComponent::ReceiveData()
 		TSharedRef<FInternetAddr> Sender = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
 		if (ListenSocket->RecvFrom(Buffer.GetData(), Buffer.Num(), BytesRead, *Sender))
 		{
+			if (Buffer.Num() < 0)
+				continue;
+			
 			FString String = FString(ANSI_TO_TCHAR(reinterpret_cast<const char*>(Buffer.GetData())));
 			LastData = String;
 			// UE_LOG(LogTemp, Log, TEXT("Received:  %s"), *String);
