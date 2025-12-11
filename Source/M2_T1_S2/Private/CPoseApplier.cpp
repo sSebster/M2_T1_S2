@@ -5,11 +5,13 @@
 
 #include "CPoseReceiverComponent.h"
 #include "Components/PoseableMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Components/SplineComponent.h"
 #include "Components/SplineMeshComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInterface.h"
+#include "Materials/MaterialParameterCollectionInstance.h"
 
 
 UCPoseApplierComponent::UCPoseApplierComponent()
@@ -116,6 +118,9 @@ void UCPoseApplierComponent::TickComponent(
         EnsureDynamicChainsCreated();
         UpdateDynamicChains();
     }
+
+    // Update comparison outputs to MPC
+    UpdateComparisons();
 }
 
 FVector UCPoseApplierComponent::ConvertOne(const FCPoseLandmark& L, const FCPoseLandmark& Pelvis, float ScaleCM, bool bInMirrorY) const
@@ -238,6 +243,79 @@ void UCPoseApplierComponent::EnsureDynamicChainsCreated()
 
                 RT.Segments.Add(Seg);
             }
+        }
+    }
+}
+
+void UCPoseApplierComponent::UpdateComparisons()
+{
+    if (Comparisons.Num() == 0)
+        return;
+
+    if (!OutputMPC)
+        return;
+
+    if (!TargetSkeletalMesh)
+        return;
+
+    UWorld* World = GetWorld();
+    if (!World)
+        return;
+
+    UMaterialParameterCollectionInstance* MPCI = World->GetParameterCollectionInstance(OutputMPC);
+    if (!MPCI)
+        return;
+
+    AActor* CapturedOwner = GetOwner();
+    if (!CapturedOwner)
+        return;
+
+    const FVector CapturedOrigin = CapturedOwner->GetActorLocation();
+    AActor* TargetOwner = TargetSkeletalMesh->GetOwner();
+    if (!TargetOwner)
+        return;
+
+    const FVector TargetOrigin = TargetOwner->GetActorLocation();
+
+    for (const FCPoseComparisonMapping& Map : Comparisons)
+    {
+        if (!FakeBones.IsValidIndex(Map.FakeBoneIndex))
+            continue;
+
+        if (Map.TargetBoneOrSocket.IsNone())
+            continue;
+
+        const FVector FakeWorld = FakeBones[Map.FakeBoneIndex]->GetComponentLocation();
+        const FVector FakeRel = FakeWorld - CapturedOrigin;
+
+        FVector TargetWorld = FVector::ZeroVector;
+        if (Map.bUseSocket)
+        {
+            TargetWorld = TargetSkeletalMesh->GetSocketLocation(Map.TargetBoneOrSocket);
+        }
+        else
+        {
+            TargetWorld = TargetSkeletalMesh->GetBoneLocation(Map.TargetBoneOrSocket, EBoneSpaces::WorldSpace);
+        }
+
+        const FVector TargetRel = TargetWorld - TargetOrigin;
+
+        const float DX = FMath::Abs(FakeRel.X - TargetRel.X);
+        const float DZ = FMath::Abs(FakeRel.Z - TargetRel.Z);
+
+        const float MX = FMath::Max(1.f, Map.MarginX);
+        const float MZ = FMath::Max(1.f, Map.MarginZ);
+
+        const float FX = FMath::Clamp(1.f - (DX / MX), 0.f, 1.f);
+        const float FZ = FMath::Clamp(1.f - (DZ / MZ), 0.f, 1.f);
+
+        if (!Map.OutputBaseParam.IsNone())
+        {
+            const FString Base = Map.OutputBaseParam.ToString();
+            const FName ParamX(*(Base + TEXT("_X")));
+            const FName ParamZ(*(Base + TEXT("_Z")));
+            MPCI->SetScalarParameterValue(ParamX, FX);
+            MPCI->SetScalarParameterValue(ParamZ, FZ);
         }
     }
 }

@@ -10,10 +10,42 @@
 struct FCPoseLandmark;
 class UCPoseReceiverComponent;
 class UPoseableMeshComponent;
+class USkeletalMeshComponent;
 class USplineComponent;
 class USplineMeshComponent;
 class UStaticMesh;
 class UMaterialInterface;
+class UMaterialParameterCollection;
+
+// Mapping configuration to compare a local FakeBone against a target bone/socket
+USTRUCT(BlueprintType)
+struct FCPoseComparisonMapping
+{
+    GENERATED_BODY()
+
+    // Index in FakeBones to compare (0..32 typical)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Compare")
+    int32 FakeBoneIndex = 0;
+
+    // Name of the target bone or socket on TargetSkeletalMesh
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Compare")
+    FName TargetBoneOrSocket = NAME_None;
+
+    // If true, interpret TargetBoneOrSocket as a socket name; otherwise as a bone name
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Compare")
+    bool bUseSocket = true;
+
+    // Base parameter name written to the MPC as <Base>_X and <Base>_Z
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Compare")
+    FName OutputBaseParam = NAME_None;
+
+    // Error margins (cm) used to normalize distance into 0..1 on each axis
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Compare", meta=(ClampMin="0.0"))
+    float MarginX = 50.f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Compare", meta=(ClampMin="0.0"))
+    float MarginZ = 50.f;
+};
 
 USTRUCT(BlueprintType)
 struct FWeightedLandmark
@@ -58,7 +90,7 @@ struct FSplineRuntimeChain
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent), Blueprintable)
 class M2_T1_S2_API UCPoseApplierComponent : public UActorComponent
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
 	UPROPERTY(EditDefaultsOnly, Category="Capture")
@@ -107,15 +139,29 @@ public:
 	TObjectPtr<UStaticMesh> SplineStaticMesh = nullptr;
 	
 	// Optional override: if set, applied to all material slots of each segment
-	UPROPERTY(EditAnywhere, Category="Capture|Spline")
-	TObjectPtr<UMaterialInterface> SplineMaterial = nullptr;
+ UPROPERTY(EditAnywhere, Category="Capture|Spline")
+ TObjectPtr<UMaterialInterface> SplineMaterial = nullptr;
 	
 	// Width per unit weight. Final width at a point = Weight * WidthPerWeight
 	UPROPERTY(EditAnywhere, Category="Capture|Spline", meta=(ClampMin="0.0"))
-	float WidthPerWeight = 0.2f;
+    float WidthPerWeight = 0.2f;
+
+    // ————— Comparison output to MPC —————
+public:
+    // Skeletal mesh component of the other pawn to compare against
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Compare")
+    TObjectPtr<USkeletalMeshComponent> TargetSkeletalMesh = nullptr;
+
+    // Material Parameter Collection to receive the X/Z scalar outputs per mapping
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Compare")
+    TObjectPtr<UMaterialParameterCollection> OutputMPC = nullptr;
+
+    // Set of comparisons to compute every tick
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture|Compare")
+    TArray<FCPoseComparisonMapping> Comparisons;
 
 private:
-	TArray<FName> BoneNames;
+    TArray<FName> BoneNames;
 	
 	UPROPERTY()
 	APlayerController* PlayerController = nullptr;
@@ -135,11 +181,13 @@ public:
 	
 	void Init(UPoseableMeshComponent* PoseableMesh, UCPoseReceiverComponent* Receiver, APlayerController* InPlayerController);
 
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-	
+    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+    
 private:
     FVector ConvertOne(const FCPoseLandmark& L, const FCPoseLandmark& Pelvis, float ScaleCM, bool bInMirrorY) const;
 
     void EnsureDynamicChainsCreated();
     void UpdateDynamicChains();
+
+    void UpdateComparisons();
 };
