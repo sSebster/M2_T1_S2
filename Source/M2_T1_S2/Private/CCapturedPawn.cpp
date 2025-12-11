@@ -29,7 +29,7 @@ ACCapturedPawn::ACCapturedPawn()
         UStaticMeshComponent* Comp = CreateDefaultSubobject<UStaticMeshComponent>(*CompName);
         Comp->SetupAttachment(RootComponent);
         Comp->SetMobility(EComponentMobility::Movable);
-        Comp->SetHiddenInGame(true);
+        Comp->SetHiddenInGame(false);
         Comp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
         FakeBoneMeshes.Add(Comp);
     }
