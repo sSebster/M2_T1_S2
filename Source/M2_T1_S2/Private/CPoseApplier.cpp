@@ -77,7 +77,7 @@ void UCPoseApplierComponent::TickComponent(
 		
 		FakeBones[i]->SetWorldLocation(LerpedPos);
 		// UE_LOG(LogTemp, Log, TEXT("[%i] %s | %s"), i, *ScreenSpacePos.ToString(), *LerpedPos.ToString());
-		DrawDebugPoint(GetWorld(), LerpedPos, 6.f, FColor::Cyan, false, 0.5f);
+		// DrawDebugPoint(GetWorld(), LerpedPos, 6.f, FColor::Cyan, false, 0.5f);
 		
 		if (!BoneNamesToMirror.IsValidIndex(i))
 			continue;

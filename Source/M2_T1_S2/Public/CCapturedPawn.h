@@ -9,6 +9,7 @@
 class UCPoseApplierComponent;
 class UCPoseReceiverComponent;
 class UPoseableMeshComponent;
+class UStaticMeshComponent;
 
 UCLASS(Blueprintable)
 class M2_T1_S2_API ACCapturedPawn : public APawn
@@ -27,6 +28,10 @@ private:
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Capture", meta=(AllowPrivateAccess=true))
 	TMap<int32, FName> LandmarkToBone;
+
+	// 33 helper scene components to visualize/apply incoming pose points
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category="Capture", meta=(AllowPrivateAccess=true))
+	TArray<TObjectPtr<UStaticMeshComponent>> FakeBoneMeshes;
 	
 	UPROPERTY()
 	TArray<FName> BoneNames;
